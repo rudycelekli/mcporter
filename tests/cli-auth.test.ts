@@ -338,3 +338,30 @@ describe('mcporter auth ad-hoc support', () => {
     process.exitCode = undefined;
   });
 });
+
+describe('auth stdio operands and output options', () => {
+  it('consumes JSON output after a double-dash stdio operand', async () => {
+    const { handleAuth } = await cliModulePromise;
+    const { runtime } = createRuntimeDouble();
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      await handleAuth(runtime, [
+        '--stdio',
+        'npm',
+        '--stdio-arg',
+        'exec',
+        '--stdio-arg',
+        '--',
+        '--stdio-arg',
+        'pkg',
+        '--output',
+        'json',
+      ]);
+      const definition = runtime.getDefinitions()[0];
+      expect(definition?.command).toMatchObject({ kind: 'stdio', command: 'npm', args: ['exec', '--', 'pkg'] });
+      expect(runtime.getDefinitions()).toHaveLength(1);
+    } finally {
+      log.mockRestore();
+    }
+  });
+});
