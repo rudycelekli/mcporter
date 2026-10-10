@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -31,6 +32,10 @@ afterEach(async () => {
 describe('documented config list filters', () => {
   it.each([
     [['local-*'], ['local-one', 'local-two']],
+    [['*'], ['local-one', 'local-two', 'local.one']],
+    [['**al**o**'], ['local-one', 'local-two', 'local.one']],
+    [['al-o?'], ['local-one']],
+    [['*missing?'], []],
     [['local-?ne'], ['local-one']],
     [['local.*'], ['local.one']],
     [['--source', 'import', 'source:cursor'], ['import-one']],
@@ -49,4 +54,18 @@ describe('documented config list filters', () => {
     const result = JSON.parse(String(log.mock.calls[0]?.[0])) as { servers: Array<{ name: string }> };
     expect(result.servers.map((server) => server.name).toSorted()).toEqual(expected.toSorted());
   });
+});
+
+it('finishes a failing multi-star filter without regex backtracking', async () => {
+  const name = 'a'.repeat(100);
+  await fs.writeFile(configPath, JSON.stringify({ imports: [], mcpServers: { [name]: { command: 'node' } } }));
+  const script = `import { handleListCommand } from './src/cli/config/list.ts'; await handleListCommand({ loadOptions: ${JSON.stringify({ configPath, rootDir: directory })}, invokeAuth: async () => {} }, ['--json', '*a*a*a*a*a*z']);`;
+  const result = spawnSync(process.execPath, ['--import', 'tsx', '--input-type=module', '-e', script], {
+    cwd: process.cwd(),
+    timeout: 3000,
+    encoding: 'utf8',
+  });
+  expect(result.error).toBeUndefined();
+  expect(result.status).toBe(0);
+  expect(JSON.parse(result.stdout).servers).toEqual([]);
 });
