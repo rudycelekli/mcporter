@@ -29,6 +29,8 @@ describe('config import valued flags', () => {
     ['--copy', '--filter'],
     ['--path', '--copy'],
     ['--filter', '--copy'],
+    ['--copy', '--filter', ''],
+    ['--copy', '--path', ''],
   ])('rejects missing values without modifying config: %j', async (...args) => {
     await expect(
       handleImportCommand(
